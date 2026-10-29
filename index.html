@@ -228,7 +228,7 @@ html{scroll-behavior:smooth}
     <div class="rhead2"><h2 id="recT">최근 상장한 18개 종목이에요</h2><div class="railnav"><button type="button" id="rp" aria-label="이전 카드">‹</button><button type="button" id="rn" aria-label="다음 카드">›</button></div></div>
     <p class="sub">카드를 넘겨 보고, 누르면 같은 양식의 상세 화면이 열려요.</p>
     <div class="rail" id="rail"></div>
-    <p class="src">등락률은 공모가 대비 첫날 종가. 시세 출처: 공모주 정보 사이트(2차 출처). 상장일 최근 순.</p>
+    <p class="src" id="recNote">등락률은 공모가 대비 첫날 종가. 시세 출처: 공모주 정보 사이트(2차 출처). 상장일 최근 순.</p>
   </section>
 
 
@@ -286,6 +286,9 @@ html{scroll-behavior:smooth}
   /* 최근 상장 카드 */
   const recent=DB.stocks.filter(s=>s.open).sort((a,b)=>b.list.localeCompare(a.list));   // 상장해서 시세가 있는 종목만
   document.getElementById('recT').textContent='최근 상장한 '+recent.length+'개 종목이에요';
+  // '최근'이 언제부터 언제까지인지 카드 아래에 적어 둬요(가장 이른 상장일 ~ 가장 늦은 상장일)
+  if(recent.length){ const ymd=s=>{ const d=dt(s); return d.getFullYear()+'.'+(d.getMonth()+1)+'.'+d.getDate(); };
+    document.getElementById('recNote').textContent='※ 최근 상장: '+ymd(recent[recent.length-1].list)+' ~ '+ymd(recent[0].list)+' 사이에 상장한 종목이에요(2026년 10월 29일 기준, 상장일 최근 순). 등락률은 공모가 대비 첫날 종가, 시세 출처는 공모주 정보 사이트(2차 출처)예요.'; }
   document.getElementById('rail').innerHTML=recent.map(s=>{ const live=s.close==null, base=live?s.open:s.close, pc=(base/s.price-1)*100, cls=pc>=0?'up':'down', d=dt(s.list), rq=s.rq/s.retail;
     return '<a class="rcard" href="'+detailUrl(s.n)+'"><div class="rhead"><b>'+esc(s.n)+'</b><span>'+(d.getMonth()+1)+'.'+d.getDate()+' 상장</span></div>'+
       '<span class="rmeta">'+esc(s.lead)+' · 공모가 '+fmt(s.price)+'원</span>'+(s.eugene?'<span class="eu">유진투자증권 '+esc(s.eugene)+'</span>':'')+

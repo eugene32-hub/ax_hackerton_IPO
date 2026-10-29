@@ -124,6 +124,9 @@ h3{font-size:15px;font-weight:800}
 /* 좌우 스와이프 섹션 */
 .pager{display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;align-items:flex-start;transition:height .3s ease;margin-inline:-4px}
 .pager::-webkit-scrollbar{display:none}
+.plg{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 2px 2px;font-size:12.5px;font-weight:700;color:var(--fg);line-height:1.4}
+.plg span{display:inline-flex;align-items:center;gap:6px}
+.plg i{width:9px;height:9px;border-radius:50%;flex:none}
 .pager>section{flex:0 0 100%;min-width:0;scroll-snap-align:start;scroll-snap-stop:always;padding-inline:4px}
 .tbl-wrap,.chips{overscroll-behavior-x:contain}
 .pnav{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:4;display:flex;align-items:center;gap:10px;background:color-mix(in srgb,var(--surface) 92%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:14px;padding:8px 10px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
@@ -5483,7 +5486,7 @@ html{scroll-behavior:smooth}
   function drawPeersG(svg,peers){
     svg.innerHTML=''; const COL=['#555555','#c46a1b','#8a6fd1','#d7141a','#2a8a6a','#2f63d6'];
     const ser=peers.map(p=>{ const r=seeded(p.n), raw=[100]; for(let k=1;k<DAYS;k++) raw.push(raw[k-1]*(1+(r()-0.48)*0.07)); const a=raw[11]; return raw.map(v=>v/a*100); });
-    const W=340,H=200,L=30,R=64,T=14,B=172, all=ser.flat(), mn=Math.floor(Math.min(...all)/10)*10, mx=Math.ceil(Math.max(...all)/10)*10;
+    const W=340,H=200,L=30,R=14,T=14,B=172, all=ser.flat(), mn=Math.floor(Math.min(...all)/10)*10, mx=Math.ceil(Math.max(...all)/10)*10;
     const X=k=>L+(W-L-R)*k/(DAYS-1), Y=v=>B-(v-mn)/(mx-mn)*(B-T), ticks=[]; for(let t=mn;t<=mx;t+=10) ticks.push(t);
     grid(svg,{L,R,W,Y,ticks});
     AXIS.forEach(a=>svg.append(el('text',{x:X(a[1]),y:H-6,'text-anchor':a[1]?'middle':'start','font-size':10.5,fill:css('--faint')},a[0])));
@@ -5491,9 +5494,10 @@ html{scroll-behavior:smooth}
     peers.forEach((p,i)=>{ const c=COL[i%COL.length], pts=ser[i].map((v,k)=>[+X(k).toFixed(1),+Y(v).toFixed(1)]);
       const path=el('path',{d:smooth(pts),fill:'none',stroke:c,'stroke-width':2.2,'stroke-linecap':'round',class:'draw',style:'animation-delay:'+(i*.1)+'s'}); svg.append(path); lenOf(path);
       const last=ser[i][DAYS-1]; svg.append(el('circle',{cx:X(DAYS-1),cy:Y(last),r:3.4,fill:c,stroke:css('--surface'),'stroke-width':1.5,class:'pop',style:'animation-delay:'+(1+i*.1)+'s'}));
-      ends.push({y:Y(last),t:p.n.length>5?p.n.slice(0,5)+'…':p.n,c}); });
-    ends.sort((a,b)=>a.y-b.y); for(let k=1;k<ends.length;k++) if(ends[k].y-ends[k-1].y<14) ends[k].y=ends[k-1].y+14;
-    ends.forEach(e=>svg.append(el('text',{x:W-R+8,y:e.y+4,'font-size':11,'font-weight':800,fill:e.c,class:'fade'},e.t)));
+    });
+    // 회사 이름이 잘리지 않도록 차트 오른쪽 이름표 대신 차트 아래 범례에 전체 이름을 보여 줘요
+    let lg=svg.nextElementSibling; if(!lg||!lg.classList.contains('plg')){ lg=document.createElement('div'); lg.className='plg'; svg.after(lg); }
+    lg.innerHTML=peers.map((p,i)=>'<span><i style="background:'+COL[i%COL.length]+'"></i>'+esc(p.n)+'</span>').join('');
     const cw=(W-L-R)/(DAYS-1);
     for(let k=0;k<DAYS;k++) hit(svg,X(k)-cw/2,T-6,cw,B-T+8,'<b>'+wk(k)+' 주 <em>(가상)</em></b>'+peers.map((p,i)=>'<span style="color:'+COL[i%COL.length]+'">●</span> '+esc(p.n)+' '+ser[i][k].toFixed(1)).join('<br>'),wk(k)+' 지수');
   }
