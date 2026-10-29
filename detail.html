@@ -5494,15 +5494,16 @@ html{scroll-behavior:smooth}
     svg.hidden=!series.length; if(!series.length) return;
     series.forEach(s=>{ const i=document.createElement('span'); i.innerHTML='<i style="background:'+css(s[1])+'"></i>'+s[0]; lg.append(i); });
     const W=340,H=170,L=38,R=6,T=14,B=142, gw=(W-L-R)/YR.length;
-    const vals=(D.chart==='stack'? YR.map((_,k)=>series.reduce((a,s)=>a+(+s[2][k]||0),0)) : series.flatMap(s=>s[2])).filter(v=>v!=null);
+    const vals=(D.chart==='stack'? YR.flatMap((_,k)=>{ let p=0,m=0; series.forEach(s=>{ const v=+s[2][k]||0; if(v>0) p+=v; else m+=v; }); return [p,m]; }) : series.flatMap(s=>s[2])).filter(v=>v!=null);
     let mx=Math.max(0,...vals), mn=Math.min(0,...vals); const rg=mx-mn;
     const step=rg>2000?1000:rg>1000?500:rg>500?200:rg>200?100:rg>80?50:20; mx=Math.ceil(mx/step)*step||step; mn=Math.floor(mn/step)*step;
     const Y=v=>T+(mx-v)/(mx-mn)*(B-T); const ticks=[]; for(let t=mn;t<=mx;t+=step) ticks.push(t);
     grid(svg,{L,R,W,Y,ticks,fmt:t=>t+(key==='ratio'?'%':'')});
     YR.forEach((y,k)=>{ const gx=L+gw*k;
       svg.append(el('text',{x:gx+gw/2,y:H-6,'text-anchor':'middle','font-size':10.5,fill:css('--muted')},y));
-      if(D.chart==='stack'){ const bw=Math.min(34,gw*.5), x=gx+gw/2-bw/2; let acc=0;
-        series.forEach((s,j)=>{ const v=s[2][k]; if(v==null||v<=0) return; const last=j===series.length-1;
+      if(D.chart==='stack'){ const bw=Math.min(34,gw*.5), x=gx+gw/2-bw/2; let acc=0, neg=0;
+        series.forEach((s,j)=>{ const v=+s[2][k]; if(!v) return; const last=j===series.length-1;
+          if(v<0){ svg.append(el('path',{d:`M${x} ${Y(neg)}V${Y(neg+v)}H${x+bw}V${Y(neg)}Z`,fill:css(s[1]),opacity:last?1:.55,class:'grow neg',style:'animation-delay:'+(k*.08+j*.15)+'s'})); neg+=v; return; }
           svg.append(el('path',{d:last?bar(x,Y(acc),bw,Y(acc+v),5):`M${x} ${Y(acc)}V${Y(acc+v)}H${x+bw}V${Y(acc)}Z`,fill:css(s[1]),opacity:last?1:.55,class:'grow',style:'animation-delay:'+(k*.08+j*.15)+'s'})); acc+=v; }); }
       else { const n=series.length, bw=Math.min(14,(gw*0.7)/n), gap=3, tw=n*bw+(n-1)*gap;
         series.forEach((s,j)=>{ const v=s[2][k]; if(v==null) return; const x=gx+gw/2-tw/2+j*(bw+gap);
