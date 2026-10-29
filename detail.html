@@ -542,6 +542,7 @@ html{scroll-behavior:smooth}
     <div class="quick" id="quick"></div>
     <div class="line"><span>청약 주수</span><b class="num" id="unitOut">1,000주</b></div>
     <div class="line"><span>필요 증거금 (50%)</span><b class="num" id="deposit">6,200,000원</b></div>
+    <div class="line"><span>최소 청약주수</span><b class="num">20주 (증거금 124,000원)</b></div>
     <div class="line" id="leftLine" hidden><span>남는 금액</span><b class="num" id="leftOut">0원</b></div>
   </div>
 
@@ -570,10 +571,10 @@ html{scroll-behavior:smooth}
 <section id="compare">
   <span class="eyebrow">비슷한 규모 IPO</span>
   <h2>비슷한 규모 IPO, 첫날 흐름은?</h2>
-  <p class="lead">공모액 ±25% 종목의 시초가 대비 첫날 종가예요.</p>
+  <p class="lead">공모액 ±25% 종목의 공모가 대비 시초가·첫날 종가예요.</p>
   <div class="card">
-    <p class="ai"><b>AI 요약</b><span>6개 종목 모두 첫날 종가가 시초가보다 낮았어요(-18.3%~-51.7%).</span></p>
-    <svg id="ipoChart" class="chart" viewBox="0 0 340 330" role="img" aria-label="비슷한 규모 IPO의 시초가 대비 첫날 종가 등락률"></svg>
+    <p class="ai"><b>AI 요약</b><span id="ipoAi"></span></p>
+    <svg id="ipoChart" class="chart" viewBox="0 0 340 330" role="img" aria-label="비슷한 규모 IPO의 공모가 대비 시초가와 첫날 종가 등락률"></svg>
     <p class="hint">막대를 누르면 공모가·시초가·종가 등락률이 보여요</p>
   </div>
   <div class="card">
@@ -763,7 +764,7 @@ html{scroll-behavior:smooth}
     qwrap.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',mode==='qty'?(+b.dataset.v===u):(+b.dataset.v===amount)));
     if(!u){ big.innerHTML='0<small>주</small>'; ['eqOut','prOut','amtOut','refOut','cntOut'].forEach(i=>document.getElementById(i).textContent='-');
       document.getElementById('eqBar').style.width='0'; document.getElementById('prBar').style.width='0';
-      badge.textContent=mode==='amt'?'증거금이 124,000원(20주) 이상이어야 해요':'최소 20주부터 청약할 수 있어요'; badge.className='badge est'; return; }
+      badge.textContent=mode==='amt'?'증거금이 124,000원(최소 청약주수 20주) 이상이어야 해요':'최소 청약주수는 20주예요'; badge.className='badge est'; return; }
     const r=result(u);
     badge.textContent=r.exact?'실제 배정표 기준':'청약자가 없던 단위 · 앞뒤 단위로 추정'; badge.className='badge'+(r.exact?'':' est');
     big.innerHTML=r.avg.toFixed(1)+'<small>주</small>';
@@ -796,29 +797,41 @@ html{scroll-behavior:smooth}
   const ME=['이에스티',272.8,12400,null,null,630.1,14.0,37.62];
   const SHORT={'케이앤에스아이앤씨':'케이앤에스','빅웨이브로보틱스':'빅웨이브'};
   const chg=(p,b)=>(p/b-1)*100;
-  function drawIpo(){
-    const svg=document.getElementById('ipoChart');
-    const rows=IPO.map(p=>({n:SHORT[p[0]]||p[0], full:p[0], oc:chg(p[4],p[3]), po:chg(p[3],p[2]), pc:chg(p[4],p[2]), p})).sort((a,b)=>b.oc-a.oc);
-    const W=340, NX=8, L=96, R=14, top=26, RH=42;
-    const vals=rows.map(r=>r.oc); let mn=Math.min(0,...vals), mx=Math.max(0,...vals);
-    mn=Math.floor((mn-8)/20)*20; mx=Math.max(20,Math.ceil((mx+8)/20)*20);
-    const X=v=>L+(v-mn)/(mx-mn)*(W-L-R);
-    const H=top+(rows.length+1)*RH+4; svg.setAttribute('viewBox','0 0 '+W+' '+H); svg.innerHTML='';
-    rows.forEach((r,i)=>{ if(i%2===0) svg.append(el('rect',{x:0,y:top+i*RH,width:W,height:RH,fill:css('--sunk'),opacity:.55,rx:8})); });
-    for(let t=mn;t<=mx;t+=20){ const zero=t===0;
+  // 비슷한 규모 IPO 첫날 흐름: 공모가(0%)를 기준선으로 시초가(연한 막대)와 종가(진한 막대)를 함께 보여 줘요
+  // rows: [{n:짧은 이름, full, me, price, open, close, amt:공모 규모(억)}], pending: {n, label} 아직 상장 전인 이 종목 표시(선택)
+  function drawOC(svg,rows,pending){
+    rows=rows.map(r=>Object.assign({po:chg(r.open,r.price),pc:chg(r.close,r.price)},r)).sort((a,b)=>b.pc-a.pc);
+    const W=340, NX=8, L=96, R=14, top=44, RH=46, n=rows.length+(pending?1:0);
+    const vals=rows.flatMap(r=>[r.po,r.pc]); let mn=Math.min(0,...vals), mx=Math.max(0,...vals);
+    const span=mx-mn, step=[20,25,50,100,200,500].find(t=>span/t<=3.5)||1000;   // 눈금 글자가 겹치지 않게 4~5개만
+    mn=Math.floor((mn-step*.3)/step)*step; mx=Math.max(step,Math.ceil((mx+step*.3)/step)*step);
+    const X=v=>L+(v-mn)/(mx-mn)*(W-L-R), H=top+n*RH+4;
+    svg.setAttribute('viewBox','0 0 '+W+' '+H); svg.innerHTML='';
+    // 범례
+    svg.append(el('rect',{x:L,y:4,width:12,height:9,rx:2,fill:css('--up'),opacity:.35}));
+    svg.append(el('text',{x:L+16,y:12,'font-size':11,fill:css('--muted')},'시초가'));
+    svg.append(el('rect',{x:L+62,y:4,width:12,height:9,rx:2,fill:css('--up')}));
+    svg.append(el('text',{x:L+78,y:12,'font-size':11,fill:css('--muted')},'종가 (공모가 대비)'));
+    rows.forEach((r,i)=>{ if(r.me) svg.append(el('rect',{x:0,y:top+i*RH,width:W,height:RH,fill:css('--accent-soft'),rx:8})); else if(i%2===0) svg.append(el('rect',{x:0,y:top+i*RH,width:W,height:RH,fill:css('--sunk'),opacity:.55,rx:8})); });
+    for(let t=mn;t<=mx;t+=step){ const zero=t===0;
       svg.append(el('line',{x1:X(t),x2:X(t),y1:top-4,y2:H-4,stroke:zero?css('--fg'):css('--line'),'stroke-width':zero?1.2:.8,'stroke-dasharray':zero?'':'2 4',opacity:zero?.5:1}));
-      svg.append(el('text',{x:X(t),y:top-10,'text-anchor':'middle','font-size':zero?11:10.5,'font-weight':zero?800:400,fill:zero?css('--fg'):css('--faint')},zero?'시초가':sg(t)+'%')); }
-    rows.forEach((r,i)=>{ const y=top+i*RH, cy=y+RH/2, up=r.oc>=0, col=up?css('--up'):css('--down');
-      svg.append(el('text',{x:NX,y:cy+4.5,'font-size':13,'font-weight':800,fill:css('--fg')},r.n));
-      const x0=X(0), x1=X(r.oc), bh=18;
-      svg.append(el('rect',{x:Math.min(x0,x1),y:cy-bh/2,width:Math.max(2,Math.abs(x1-x0)),height:bh,rx:5,fill:col,class:'growx'+(up?' pos':''),style:'animation-delay:'+(i*.07)+'s'}));
-      hit(svg,0,y,W,RH,'<b>'+r.full+'</b>시초가 → 종가 '+ud(r.oc,sg(r.oc.toFixed(1))+'%')+'<br>공모가 대비 시초가 '+ud(r.po,sg(r.po.toFixed(0))+'%')+'<br>공모가 대비 종가 '+ud(r.pc,sg(r.pc.toFixed(0))+'%')+'<br>공모 규모 '+(+r.p[1]).toFixed(1)+'억원<br><em>공모가 '+fmt(r.p[2])+' · 시초 '+fmt(r.p[3])+' · 종가 '+fmt(r.p[4])+'원</em>',r.full+' 시초가 대비 종가 '+r.oc.toFixed(1)+'%');
-    });
-    const y=top+rows.length*RH, cy=y+RH/2;
-    svg.append(el('text',{x:NX,y:cy+4.5,'font-size':13,'font-weight':800,fill:css('--accent')},'이에스티'));
-    svg.append(el('circle',{cx:X(0),cy,r:5.5,fill:css('--accent'),stroke:css('--surface'),'stroke-width':2,class:'pop',style:'animation-delay:.5s'}));
-    svg.append(el('text',{x:X(0)-12,y:cy+4.5,'text-anchor':'end','font-size':11.5,'font-weight':700,fill:css('--accent')},'11/4 상장 예정'));
-  }
+      svg.append(el('text',{x:X(t),y:top-10,'text-anchor':'middle','font-size':zero?11:10.5,'font-weight':zero?800:400,fill:zero?css('--fg'):css('--faint')},zero?'공모가':sg(t)+'%')); }
+    const x0=X(0);
+    rows.forEach((r,i)=>{ const y=top+i*RH, cy=y+RH/2;
+      svg.append(el('text',{x:NX,y:cy+4.5,'font-size':13,'font-weight':800,fill:r.me?css('--accent'):css('--fg')},r.n));
+      [[r.po,cy-9,.35],[r.pc,cy+1,1]].forEach(([v,by,op],k)=>{ const x1=X(v), up=v>=0;
+        svg.append(el('rect',{x:Math.min(x0,x1),y:by,width:Math.max(2,Math.abs(x1-x0)),height:8,rx:3,fill:up?css('--up'):css('--down'),opacity:op,class:'growx'+(up?' pos':''),style:'animation-delay:'+(i*.07+k*.12)+'s'})); });
+      hit(svg,0,y,W,RH,'<b>'+String(r.full).replace(/[&<>"]/g,'')+'</b>공모가 대비 시초가 '+ud(r.po,sg(r.po.toFixed(1))+'%')+'<br>공모가 대비 종가 '+ud(r.pc,sg(r.pc.toFixed(1))+'%')+'<br>공모 규모 '+(+r.amt).toFixed(1)+'억원<br><em>공모가 '+fmt(r.price)+' · 시초 '+fmt(r.open)+' · 종가 '+fmt(r.close)+'원</em>',r.full+' 공모가 대비 시초가 '+r.po.toFixed(1)+'%, 종가 '+r.pc.toFixed(1)+'%'); });
+    if(pending){ const cy=top+rows.length*RH+RH/2;
+      svg.append(el('text',{x:NX,y:cy+4.5,'font-size':13,'font-weight':800,fill:css('--accent')},pending.n));
+      svg.append(el('circle',{cx:x0,cy,r:5.5,fill:css('--accent'),stroke:css('--surface'),'stroke-width':2,class:'pop',style:'animation-delay:.5s'}));
+      svg.append(el('text',{x:x0+10,y:cy+4.5,'font-size':11.5,'font-weight':700,fill:css('--accent')},pending.label)); }
+    const up=rows.filter(r=>r.close>r.price).length;
+    return rows.length+'개 종목 중 '+up+'개가 공모가보다 높게 첫날을 마쳤어요.'; }
+
+  function drawIpo(){
+    const t=drawOC(document.getElementById('ipoChart'),IPO.map(p=>({n:SHORT[p[0]]||p[0],full:p[0],price:p[2],open:p[3],close:p[4],amt:p[1]})),{n:'이에스티',label:'11/4 상장 예정'});
+    const ai=document.getElementById('ipoAi'); if(ai) ai.textContent=t; }
   const tb=document.querySelector('#ipoTable tbody');
   const sgnTd=v=>'<span class="'+(v>=0?'up':'down')+'">'+sg(v.toFixed(1))+'%</span>';
   [ME,...IPO].forEach((p,i)=>{ const tr=document.createElement('tr'); if(i===0) tr.className='me';
@@ -975,7 +988,7 @@ html{scroll-behavior:smooth}
     <div class="kpi"><span class="k">수요예측 경쟁률</span><span class="v num">${s.fcr?s.fcr.toFixed(1)+' : 1':'결과 전'}</span><span class="s">${s.fcr?'기관 대상':(s.fc?md(s.fc)+'~'+md(s.fcEnd)+' 수요예측':'기관 대상')}</span></div>
     <div class="kpi"><span class="k">일반청약 경쟁률</span><span class="v num">${s.rq?(s.rq/s.retail).toFixed(2)+' : 1':'청약 전'}</span><span class="s">${s.rq?(cnt?fmt(cnt)+'건 참여':'청약 '+fmt(s.rq)+'주'):(s.sub?md(s.sub)+'~'+md(s.subEnd)+' 청약':'일정 미정')}</span></div>
   </div>
-  ${s.stage==='pre'?`<div class="card"><h3>비슷한 규모 IPO, 첫날 흐름은?</h3><p class="lead" style="margin:4px 0 10px">공모액 ${amt(s).toFixed(0)}억${s.price?'':'(밴드 상단 기준)'} ±25% 종목의 시초가 대비 종가예요.</p><p class="ai" data-r="ovAi"></p><svg id="ovCmp" class="chart" viewBox="0 0 340 300" role="img" aria-label="비슷한 규모 IPO의 시초가 대비 첫날 종가 등락률"></svg><p class="hint">막대를 누르면 공모가·시초가·종가 등락률이 보여요</p><p class="src">과거 사례를 나란히 놓은 것일 뿐, 주가를 예측하지는 않아요. 시세는 공모주 정보 사이트(2차 출처).</p></div>`:!s.open?`<div class="card"><h3>상장 첫날은 어땠을까요?</h3><p class="note">아직 상장 전이에요. ${s.list?'상장 예정일은 '+md(s.list)+'이에요.':'상장 예정일은 아직 정해지지 않았어요.'} 상장하면 시초가·종가를 보여 드려요.</p></div>`:`<div class="card">
+  ${s.stage==='pre'?`<div class="card"><h3>비슷한 규모 IPO, 첫날 흐름은?</h3><p class="lead" style="margin:4px 0 10px">공모액 ${amt(s).toFixed(0)}억${s.price?'':'(밴드 상단 기준)'} ±25% 종목의 공모가 대비 시초가·종가예요.</p><p class="ai" data-r="ovAi"></p><svg id="ovCmp" class="chart" viewBox="0 0 340 300" role="img" aria-label="비슷한 규모 IPO의 공모가 대비 시초가와 첫날 종가 등락률"></svg><p class="hint">막대를 누르면 공모가·시초가·종가 등락률이 보여요</p><p class="src">과거 사례를 나란히 놓은 것일 뿐, 주가를 예측하지는 않아요. 시세는 공모주 정보 사이트(2차 출처).</p></div>`:!s.open?`<div class="card"><h3>상장 첫날은 어땠을까요?</h3><p class="note">아직 상장 전이에요. ${s.list?'상장 예정일은 '+md(s.list)+'이에요.':'상장 예정일은 아직 정해지지 않았어요.'} 상장하면 시초가·종가를 보여 드려요.</p></div>`:`<div class="card">
     <h3>상장 첫날은 어땠을까요?</h3>
     <div class="lines">
       <div class="line" style="border-top:0;padding-top:0"><span>시초가</span><b class="num">${fmt(s.open)}원 <span class="${clsUD(po)}">${pctTxt(po)}</span></b></div>
@@ -1027,7 +1040,7 @@ html{scroll-behavior:smooth}
       :'<p class="note">가장 큰 청약 단위로 넣어도 평균 1주가 안 돼요(최대 평균 '+max.toFixed(1)+'주).</p>';
     return '<h3>몇 주 받으려면 얼마를 넣어야 할까요?</h3><div class="lines">'+body+'</div><p class="src">'+note+'</p>'; }
   function planCard(s){ const plan=DB.brokers.filter(b=>b.n===s.n), px=PX(s); if(!plan.length) return '';
-    return '<div class="card"><h3>증권사별 일반청약 배정 계획</h3><div class="lines">'+plan.map((b,i)=>'<div class="line"'+(i?'':' style="border-top:0;padding-top:0"')+'><span>'+esc(b.b)+' <small>'+esc(b.role||'')+'</small></span><b class="num">'+(b.alloc?fmt(b.alloc)+'주':'-')+'</b></div>'+(b.min_unit?'<div class="line"><span>최소 '+fmt(b.min_unit)+'주 증거금'+(s.price?'':' (밴드 상단)')+'</span><b class="num">'+fmt(b.min_unit*px/2)+'원</b></div>':'')+(b.max_qty?'<div class="line"><span>1인 청약 한도</span><b class="num">'+fmt(b.max_qty)+'주</b></div>':'')).join('')+'</div></div>'; }
+    return '<div class="card"><h3>증권사별 일반청약 배정 계획</h3><div class="lines">'+plan.map((b,i)=>'<div class="line"'+(i?'':' style="border-top:0;padding-top:0"')+'><span>'+esc(b.b)+' <small>'+esc(b.role||'')+'</small></span><b class="num">'+(b.alloc?fmt(b.alloc)+'주':'-')+'</b></div>'+(b.min_unit?'<div class="line"><span>최소 청약주수 '+fmt(b.min_unit)+'주 · 증거금'+(s.price?'':' (밴드 상단)')+'</span><b class="num">'+fmt(b.min_unit*px/2)+'원</b></div>':'')+(b.max_qty?'<div class="line"><span>1인 청약 한도</span><b class="num">'+fmt(b.max_qty)+'주</b></div>':'')).join('')+'</div></div>'; }
   function panelCalc(s){
     return `<section id="calc">
   <span class="eyebrow">배정 계산기</span>
@@ -1045,6 +1058,7 @@ html{scroll-behavior:smooth}
     <div class="slide"><button type="button" data-r="minus" aria-label="한 단위 줄이기">−</button><input type="range" data-r="range" min="0" step="1" aria-label="청약 단위 선택"><button type="button" data-r="plus" aria-label="한 단위 늘리기">+</button></div>
     <div class="line"><span>청약 주수</span><b class="num" data-r="uOut">-</b></div>
     <div class="line"><span>필요 증거금 (50%)</span><b class="num" data-r="dep">-</b></div>
+    <div class="line"><span>최소 청약주수</span><b class="num" data-r="minU">-</b></div>
     <div class="line" data-r="leftLine" hidden><span>남는 금액</span><b class="num" data-r="left">-</b></div>
   </div>
   <div class="card calc-out" aria-live="polite">
@@ -1081,7 +1095,7 @@ html{scroll-behavior:smooth}
       q('leftLine').hidden=mode!=='amt'; if(mode==='amt') q('left').textContent=fmt(Math.max(0,amount-u*DEP))+'원';
       const r=rows.find(x=>x.u===u), badge=q('badge');
       if(!r){ q('avg').innerHTML='0<small>주</small>'; ['eq','pr','amt','ref','cnt'].forEach(k=>q(k).textContent='-'); q('eqBar').style.width='0'; q('prBar').style.width='0';
-        badge.textContent='최소 '+fmt(rows[0].u)+'주('+fmt(rows[0].u*DEP)+'원)부터 청약할 수 있어요'; badge.className='badge est'; return; }
+        badge.textContent='최소 청약주수는 '+fmt(rows[0].u)+'주(증거금 '+fmt(rows[0].u*DEP)+'원)예요'; badge.className='badge est'; return; }
       badge.textContent=brs[bi].b+' 실제 배정표 기준'; badge.className='badge';
       const avg=r.tot/r.c, eqP=r.eqX/r.c, prP=r.prX/r.c;
       q('avg').innerHTML=avg.toFixed(1)+'<small>주</small>';
@@ -1095,6 +1109,7 @@ html{scroll-behavior:smooth}
       if(mode==='qty') u=snap(raw); else { amount=raw; u=snap(raw/DEP); } sync(); render(); }
     function setUnit(v){ u=v; if(mode==='qty') input.value=fmt(u); else { amount=u*DEP; input.value=fmt(amount); } sync(); render(); }
     function selBroker(i){ bi=i; rows=group(brs[i]); range.max=rows.length-1;
+      q('minU').textContent=fmt(rows[0].u)+'주 (증거금 '+fmt(rows[0].u*DEP)+'원)';
       q('goal').innerHTML=goalHTML(rows.map(g=>({money:g.u*DEP,qty:g.u,avg:g.tot/g.c})),brs[i].b+' 실제 배정표에서 같은 단위 청약자가 받은 평균 주수 기준이에요.');
       q('brokers').querySelectorAll('button').forEach((b,k)=>b.setAttribute('aria-selected',k===i));
       q('hint').textContent=mode==='qty'?fmt(rows[0].u)+'~'+fmt(rows[rows.length-1].u)+'주 · 청약 단위에 맞춰 자동 조정돼요':'증거금(청약금액의 50%)으로 가능한 최대 주수를 계산해요';
@@ -1110,7 +1125,7 @@ html{scroll-behavior:smooth}
     q('plus').onclick=()=>{ const i=rows.findIndex(r=>r.u>u); setUnit(rows[i<0?rows.length-1:i].u); };
     if(brs.length) selBroker(0);
     else{ const plan=DB.brokers.filter(b=>b.n===s.n), px=PX(s);
-      sec.querySelector('.card').innerHTML=plan.length?'<h3>증권사별 일반청약 배정 계획</h3><div class="lines">'+plan.map((b,i)=>'<div class="line"'+(i?'':' style="border-top:0;padding-top:0"')+'><span>'+esc(b.b)+' <small>'+esc(b.role||'')+'</small></span><b class="num">'+(b.alloc?fmt(b.alloc)+'주':'-')+'</b></div>'+(b.min_unit?'<div class="line"><span>최소 '+fmt(b.min_unit)+'주 증거금'+(s.price?'':' (밴드 상단)')+'</span><b class="num">'+fmt(b.min_unit*px/2)+'원</b></div>':'')).join('')+'</div>'+(s.price?'':'<p class="src">확정 공모가는 수요예측 뒤 정해져요. 증거금은 희망 밴드 상단 '+fmt(px)+'원 기준이에요.</p>'):'<p class="note">이 종목의 청약 단위별 배정표가 없어요.</p>';
+      sec.querySelector('.card').innerHTML=plan.length?'<h3>증권사별 일반청약 배정 계획</h3><div class="lines">'+plan.map((b,i)=>'<div class="line"'+(i?'':' style="border-top:0;padding-top:0"')+'><span>'+esc(b.b)+' <small>'+esc(b.role||'')+'</small></span><b class="num">'+(b.alloc?fmt(b.alloc)+'주':'-')+'</b></div>'+(b.min_unit?'<div class="line"><span>최소 청약주수 '+fmt(b.min_unit)+'주 · 증거금'+(s.price?'':' (밴드 상단)')+'</span><b class="num">'+fmt(b.min_unit*px/2)+'원</b></div>':'')).join('')+'</div>'+(s.price?'':'<p class="src">확정 공모가는 수요예측 뒤 정해져요. 증거금은 희망 밴드 상단 '+fmt(px)+'원 기준이에요.</p>'):'<p class="note">이 종목의 청약 단위별 배정표가 없어요.</p>';
       const out=sec.querySelector('.calc-out'); if(out) out.hidden=true; const gl=sec.querySelector('.goal'); if(gl) gl.hidden=true; }
   }
 
@@ -1142,7 +1157,7 @@ html{scroll-behavior:smooth}
       const badge=q('badge');
       if(!g||qty<MIN){ q('avg').innerHTML='0<small>주</small>'; ['eq','pr','amt','ref','cnt'].forEach(k=>q(k).textContent='-'); q('eqBar').style.width='0'; q('prBar').style.width='0';
         const need=Math.max(MIN*px/2,groups[0].u*ref.price/2);
-        badge.textContent='최소 '+fmt(MIN)+'주(증거금 '+fmt(Math.ceil(need))+'원)부터 계산할 수 있어요'; badge.className='badge est'; return; }
+        badge.textContent='최소 청약주수는 '+fmt(MIN)+'주(증거금 '+fmt(Math.ceil(need))+'원)예요'; badge.className='badge est'; return; }
       const k=ref.price/px, est=g.tot/g.c*k, eqA=(g.eqPer+g.eqX/g.c)*k, prA=Math.max(0,est-eqA);
       badge.textContent='예상 배정 · 참고 사례 '+ref.n+' ('+ref.b+')'; badge.className='badge est';
       q('avg').innerHTML='약 '+n1x(est)+'<small>주</small>';
@@ -1156,6 +1171,7 @@ html{scroll-behavior:smooth}
     function fromInput(){ const raw=+(input.value.replace(/[^\d]/g,''))||0; input.value=raw?fmt(raw):'';
       money= mode==='qty' ? Math.floor(raw/MIN)*MIN*px/2 : raw; sync(); render(); }
     function selRef(i){ ri=i; groups=grp(refs[i].rows); range.max=groups.length-1;
+      q('minU').textContent=fmt(MIN)+'주 (증거금 '+fmt(MIN*px/2)+'원'+(s.price?'':', 밴드 상단')+')';
       q('goal').innerHTML=goalHTML(groups.map(g=>{ const m=g.u*refs[i].price/2; return {money:m,qty:Math.floor(m/(px/2)),avg:g.tot/g.c*refs[i].price/px}; }),'참고 사례 '+refs[i].n+'('+refs[i].b+') 배정 결과로 추정한 값이에요. 예상 배정수량임에 따라 실제 배정분과 다를 수 있습니다.');
       q('brokers').querySelectorAll('button').forEach((b,k)=>b.setAttribute('aria-selected',k===i));
       const r=refs[i];
@@ -1183,10 +1199,10 @@ html{scroll-behavior:smooth}
     return `<section id="compare">
   <span class="eyebrow">비슷한 규모 IPO</span>
   <h2>비슷한 규모 IPO, 첫날 흐름은?</h2>
-  <p class="lead">공모액 ${amt(s).toFixed(0)}억 ±25% 종목의 시초가 대비 종가예요.</p>
+  <p class="lead">공모액 ${amt(s).toFixed(0)}억 ±25% 종목의 공모가 대비 시초가·종가예요.</p>
   <div class="card">
-    <p class="ai"><b>AI 요약</b><span>${done.length}개 종목 중 ${down}개가 시초가보다 낮게 끝났어요.${s.close==null?' ('+esc(s.n)+(s.open?'은 오늘 상장이라 종가 반영 전)':'은 아직 상장 전)'):''}</span></p>
-    <svg id="cmpChart" class="chart" viewBox="0 0 340 300" role="img" aria-label="비슷한 규모 IPO의 시초가 대비 첫날 종가 등락률"></svg>
+    <p class="ai"><b>AI 요약</b><span>${done.length}개 종목 중 ${done.filter(x=>x.close>x.price).length}개가 공모가보다 높게 첫날을 마쳤어요.${s.close==null?' ('+esc(s.n)+(s.open?'은 오늘 상장이라 종가 반영 전)':'은 아직 상장 전)'):''}</span></p>
+    <svg id="cmpChart" class="chart" viewBox="0 0 340 300" role="img" aria-label="비슷한 규모 IPO의 공모가 대비 시초가와 첫날 종가 등락률"></svg>
     <p class="hint">막대를 누르면 공모가·시초가·종가 등락률이 보여요</p>
   </div>
   <div class="card">
@@ -1202,25 +1218,8 @@ html{scroll-behavior:smooth}
 </section>`; }
 
   function drawCmp(svg,s){
-    const all=[s,...peersOf(s)].filter(p=>p.close!=null);
-    const rows=all.map(p=>({n:SHORT[p.n]||p.n, full:p.n, me:p.n===s.n, oc:chg(p.close,p.open), po:chg(p.open,p.price), pc:chg(p.close,p.price), p})).sort((a,b)=>b.oc-a.oc);
-    const W=340, NX=8, L=96, R=14, top=26, RH=42;
-    let mn=Math.min(0,...rows.map(r=>r.oc)), mx=Math.max(0,...rows.map(r=>r.oc));
-    mn=Math.floor((mn-8)/20)*20; mx=Math.max(20,Math.ceil((mx+8)/20)*20);
-    const X=v=>L+(v-mn)/(mx-mn)*(W-L-R), H=top+rows.length*RH+4;
-    svg.setAttribute('viewBox','0 0 '+W+' '+H); svg.innerHTML='';
-    rows.forEach((r,i)=>{ if(r.me) svg.append(el('rect',{x:0,y:top+i*RH,width:W,height:RH,fill:css('--accent-soft'),rx:8})); else if(i%2===0) svg.append(el('rect',{x:0,y:top+i*RH,width:W,height:RH,fill:css('--sunk'),opacity:.55,rx:8})); });
-    const step=(mx-mn)>120?40:20;
-    for(let t=mn;t<=mx;t+=step){ const zero=t===0;
-      svg.append(el('line',{x1:X(t),x2:X(t),y1:top-4,y2:H-4,stroke:zero?css('--fg'):css('--line'),'stroke-width':zero?1.2:.8,'stroke-dasharray':zero?'':'2 4',opacity:zero?.5:1}));
-      svg.append(el('text',{x:X(t),y:top-10,'text-anchor':'middle','font-size':zero?11:10.5,'font-weight':zero?800:400,fill:zero?css('--fg'):css('--faint')},zero?'시초가':sg(t)+'%')); }
-    if(mn<0&&mx>0&&mx-mn>0){}
-    rows.forEach((r,i)=>{ const y=top+i*RH, cy=y+RH/2, up=r.oc>=0, col=up?css('--up'):css('--down');
-      svg.append(el('text',{x:NX,y:cy+4.5,'font-size':13,'font-weight':800,fill:r.me?css('--accent'):css('--fg')},r.n));
-      const x0=X(0), x1=X(r.oc);
-      svg.append(el('rect',{x:Math.min(x0,x1),y:cy-9,width:Math.max(2,Math.abs(x1-x0)),height:18,rx:5,fill:col,class:'growx'+(up?' pos':''),style:'animation-delay:'+(i*.07)+'s'}));
-      hit(svg,0,y,W,RH,'<b>'+esc(r.full)+'</b>시초가 → 종가 '+ud(r.oc,sg(r.oc.toFixed(1))+'%')+'<br>공모가 대비 시초가 '+ud(r.po,sg(r.po.toFixed(0))+'%')+'<br>공모가 대비 종가 '+ud(r.pc,sg(r.pc.toFixed(0))+'%')+'<br>공모 규모 '+amt(r.p).toFixed(1)+'억원<br><em>공모가 '+fmt(r.p.price)+' · 시초 '+fmt(r.p.open)+' · 종가 '+fmt(r.p.close)+'원</em>',r.full+' 시초가 대비 종가 '+r.oc.toFixed(1)+'%'); });
-  }
+    const all=[s,...peersOf(s)].filter(p=>p.open&&p.close!=null);
+    return drawOC(svg,all.map(p=>({n:SHORT[p.n]||p.n,full:p.n,me:p.n===s.n,price:p.price,open:p.open,close:p.close,amt:amt(p)})),s.open?null:{n:SHORT[s.n]||s.n,label:'아직 상장 전'}); }
 
   function panelRisk(s){
     const lk=DB.lockup[s.n]||[0,0,0,0,0], tot=lk.reduce((a,b)=>a+b,0)||1, names=['6개월','3개월','1개월','15일','미확약'];
@@ -5583,7 +5582,7 @@ html{scroll-behavior:smooth}
       pager.replaceChildren(...tmp.children);
       wireCalc(pager.querySelector('#calc'),s);
       drawCmp(pager.querySelector('#cmpChart'),s);
-      const ov=pager.querySelector('#ovCmp'); if(ov){ drawCmp(ov,s); const ps=peersOf(s).filter(p=>p.close!=null), dn=ps.filter(p=>p.close<p.open).length; const ai=pager.querySelector('[data-r="ovAi"]'); if(ai) ai.innerHTML='<b>AI 요약</b><span>'+ps.length+'개 종목 중 '+dn+'개가 시초가보다 낮게 끝났어요.</span>'; }
+      const ov=pager.querySelector('#ovCmp'); if(ov){ const t=drawCmp(ov,s); const ai=pager.querySelector('[data-r="ovAi"]'); if(ai) ai.innerHTML='<b>AI 요약</b><span>'+esc(t)+'</span>'; }
       if(P) wireFull(pager,s,P);
     }
     currentStock=name;
@@ -5689,11 +5688,11 @@ html{scroll-behavior:smooth}
     return '이 종목은 '+(V.method||'')+' 방식으로 평가했어요'+(ps?'(비교기업 '+ps+')':'')+(V.band?'. 희망 밴드 '+V.band+(C.s.price?', 확정 공모가 '+fmt(C.s.price)+'원':', 확정 공모가는 수요예측 뒤 정해져요'):'')+'.'; }
   const md3=d=>d?(+d.slice(5,7))+'월 '+(+d.slice(8,10))+'일':'-';
   function allotTxt(C,qty,amount){ const bname=Object.keys(C.units)[0];
-    if(!bname){ const b=C.brokers.find(x=>x.min_unit), px=PX(C.s); return {t:'아직 청약 전이라 실제 배정표가 없어요.'+(b&&px?' '+b.b+' 최소 청약은 '+fmt(b.min_unit)+'주이고 증거금은 '+fmt(b.min_unit*px/2)+'원이에요'+(C.s.price?'.':'(희망 밴드 상단 기준).'):''),src:'증권신고서'}; }
+    if(!bname){ const b=C.brokers.find(x=>x.min_unit), px=PX(C.s); return {t:'아직 청약 전이라 실제 배정표가 없어요.'+(b&&px?' '+b.b+' 최소 청약주수는 '+fmt(b.min_unit)+'주이고 증거금은 '+fmt(b.min_unit*px/2)+'원이에요'+(C.s.price?'.':'(희망 밴드 상단 기준).'):''),src:'증권신고서'}; }
     const rows=C.units[bname].slice().sort((a,b)=>a[0]-b[0]), dep=C.s.price/2;
     if(amount!=null) qty=Math.floor(amount/dep);
     let row=null; rows.forEach(r=>{ if(r[0]<=qty) row=r; });
-    if(!row) return {t:'최소 '+fmt(rows[0][0])+'주(증거금 '+fmt(rows[0][0]*dep)+'원)부터 청약할 수 있어요.',src:'증권발행실적보고서 Ⅱ.4'};
+    if(!row) return {t:'최소 청약주수는 '+fmt(rows[0][0])+'주(증거금 '+fmt(rows[0][0]*dep)+'원)예요.',src:'증권발행실적보고서 Ⅱ.4'};
     const same=rows.filter(r=>r[0]===row[0]), c=same.reduce((a,r)=>a+r[1],0), tot=same.reduce((a,r)=>a+r[9],0), eqX=same.reduce((a,r)=>a+r[3],0), prX=same.reduce((a,r)=>a+r[7],0);
     const head=amount!=null?fmt(amount)+'원을 증거금으로 넣으면 최대 '+fmt(row[0])+'주까지 청약할 수 있어요. ':fmt(row[0])+'주를 청약했다면, ';
     return {t:head+bname+' 실제 배정표에서 같은 단위 청약자 '+fmt(c)+'명은 평균 '+(tot/c).toFixed(1)+'주를 받았어요(균등 '+(row[2]||0)+'주'+(eqX?'+추첨 '+(eqX/c*100).toFixed(0)+'%':'')+', 비례 '+(row[5]&&row[6]?row[6]:0)+'주'+(prX?'+추첨 '+(prX/c*100).toFixed(0)+'%':'')+'). 배정 금액은 약 '+fmt(tot/c*C.s.price)+'원이에요.',src:'증권발행실적보고서 Ⅱ.4 청약단위별 배정 현황'}; }
@@ -5960,7 +5959,8 @@ html{scroll-behavior:smooth}
                  : st>=500 ? 'AI 서버가 바빠요. 잠시 후 다시 물어봐 주세요.'
                  : !st ? 'AI 서버에 연결하지 못했어요(인터넷 연결 확인).' : 'AI 응답 중 오류가 났어요('+st+').';
         dlog('fallback',{provider:prov(),status:st,why,detail:err&&err.detail?String(err.detail).slice(0,600):undefined,error:String(err&&(err.stack||err.message)||err).slice(0,400)});
-        const a=answer(q,ctxOf(currentStock)); el.className='msg bot'; el.innerHTML=esc(a.t).replace(/\n/g,'<br>')+'<small>'+esc(why)+' 기본 답변을 보여 드렸어요.'+(err&&err.detail?'<br>Google 응답: '+esc(String(err.detail).replace(/\s*https?:\S+/g,'').slice(0,140))
+        const a=answer(q,ctxOf(currentStock)); el.className='msg bot'; el.innerHTML=esc(a.t).replace(/\n/g,'<br>')+(a.src?'<small>출처: '+esc(a.src)+'</small>':''); log.scrollTop=log.scrollHeight; return;
+        el.innerHTML+='<small>'+esc(why)+' 기본 답변을 보여 드렸어요.'+(err&&err.detail?'<br>Google 응답: '+esc(String(err.detail).replace(/\s*https?:\S+/g,'').slice(0,140))
           +((/https:\/\/console\.(developers|cloud)\.google\.com\/\S+/.exec(err.detail)||[])[0]?' <a href="'+esc(/https:\/\/console\.(developers|cloud)\.google\.com\/\S+/.exec(err.detail)[0].replace(/[).,]+$/,''))+'" target="_blank" rel="noopener">API 켜러 가기</a>':''):'')+'</small>'; return; } }
     setTimeout(()=>{ const a=answer(q,ctxOf(currentStock)); el.className='msg bot'; el.innerHTML=esc(a.t).replace(/\n/g,'<br>')+(a.src?'<small>출처: '+esc(a.src)+'</small>':''); log.scrollTop=log.scrollHeight; },450+Math.random()*350); }
   let chipDrag=null, chipMoved=false;   // 마우스로 칩 줄을 끌어서 넘기기(터치는 기본 스와이프)
