@@ -204,7 +204,8 @@ h3{font-size:15px;font-weight:800}
 .chat-in button{flex:none;width:44px;border:0;border-radius:12px;background:var(--accent);color:#fff;font:900 18px/1 var(--f-body);cursor:pointer}
 .chat-who{display:flex;align-items:center;gap:10px}
 .chat-who > div{display:grid}
-.ava{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 65%,#000));color:#fff;display:grid;place-items:center;font-weight:900;font-size:15px;flex:none}
+.ava{width:40px;height:40px;border-radius:50%;background:#FDE6E6;overflow:hidden;display:block;flex:none;box-shadow:0 0 0 1.5px color-mix(in srgb,var(--accent) 35%,transparent)}
+.ava svg{display:block}
 .chat-acts{display:flex;gap:6px}
 .chat-set{padding:12px 16px;border-bottom:1px solid var(--line);display:grid;gap:8px;font-size:12.5px;color:var(--muted);background:var(--sunk)}
 .chat-set p{margin:0;line-height:1.6}
@@ -594,7 +595,7 @@ html{scroll-behavior:smooth}
   </div>
 
   <div class="card">
-    <details open>
+    <details>
       <summary>기술특례로 상장하는 회사예요</summary>
       <p>전문평가기관 2곳에서 A·BBB 등급을 받아 완화된 요건으로 상장해요. 2023~2025년에는 연결 영업손실을 냈어요.</p>
     </details>
@@ -1230,8 +1231,8 @@ html{scroll-behavior:smooth}
     <p class="src">출처: 증권발행실적보고서 Ⅱ.5 기관투자자 의무보유확약기간별 배정현황.</p>
   </div>
   <div class="card">
-    ${fl!=null?`<details open><summary>상장일 유통 물량이 ${fl.toFixed(1)}%예요</summary><p>상장일에 ${fmt(s.float)}주를 바로 팔 수 있어요. 확약이 끝나는 시점마다 물량이 더 풀려요.</p></details>`:''}
-    <details${fl==null?' open':''}><summary>확약하지 않은 기관 물량이 ${(lk[4]/tot*100).toFixed(1)}%예요</summary><p>미확약 물량 ${fmt(lk[4])}주는 상장일부터 매도할 수 있어요.</p></details>
+    ${fl!=null?`<details><summary>상장일 유통 물량이 ${fl.toFixed(1)}%예요</summary><p>상장일에 ${fmt(s.float)}주를 바로 팔 수 있어요. 확약이 끝나는 시점마다 물량이 더 풀려요.</p></details>`:''}
+    <details><summary>확약하지 않은 기관 물량이 ${(lk[4]/tot*100).toFixed(1)}%예요</summary><p>미확약 물량 ${fmt(lk[4])}주는 상장일부터 매도할 수 있어요.</p></details>
     <details><summary>상세 위험요소는 원문을 확인해 주세요</summary><p>이 종목의 투자위험요소는 아직 정리하지 않았어요. 증권신고서·투자설명서의 투자위험요소를 확인해 주세요.</p></details>
   </div>
   <div class="warnbox">
@@ -5445,7 +5446,7 @@ html{scroll-behavior:smooth}
   function panelRiskFull(s,P){
     const base=panelRisk(s); const fsC=P.float_schedule&&P.float_schedule.length>1;
     const floatCard=fsC?`<div class="card"><h3>상장 후 풀리는 물량</h3><svg class="chart" data-r="float" viewBox="0 0 340 176" role="img" aria-label="상장 후 기간별 누적 유통가능 비율"></svg><p class="hint">점을 누르면 기간별 유통 가능 물량이 보여요</p><p class="src">누적 기준. 출처: ${esc(P.filing||'증권신고서')} 기간별 유통가능 주식수 표.</p></div>`:'';
-    const risks=(P.risks||[]).map((r,i)=>'<details'+(i?'':' open')+'><summary>'+esc(r.t)+'</summary><p>'+esc(r.d)+'</p></details>').join('');
+    const risks=(P.risks||[]).map((r,i)=>'<details><summary>'+esc(r.t)+'</summary><p>'+esc(r.d)+'</p></details>').join('');
     let html=base.replace('<h2>청약 전에 꼭 확인해 주세요</h2>','<h2>청약 전에 꼭 확인해 주세요</h2>'+floatCard);
     if(risks) html=html.replace(/<div class="card">\s*(<details[\s\S]*?)<\/div>\s*<div class="warnbox">/, (m,g1)=>'<div class="card">'+g1+risks+'<p class="src">출처: '+esc(P.filing||'증권신고서')+' 투자위험요소 요약. 자세한 내용은 원문에서 확인해 주세요.</p></div>\n  <div class="warnbox">')
                          .replace(/<details><summary>상세 위험요소는 원문을 확인해 주세요<\/summary><p>[\s\S]*?<\/p><\/details>/,'');
@@ -5908,11 +5909,12 @@ html{scroll-behavior:smooth}
   const keyName=()=>prov()==='gemini'?'yujin-gkey':'yujin-key';
   const provLabel=()=>SERVER_AI?'Gemini(서버)':prov()==='gemini'?'Gemini':'Claude Opus 5.5';
 
+  const YUJIN_PIC='<svg viewBox="36 46 168 168" width="100%" height="100%" aria-hidden="true"><defs><clipPath id="yjA"><circle cx="120" cy="130" r="84"/></clipPath></defs><g clip-path="url(#yjA)"><circle cx="120" cy="130" r="84" fill="#FDE6E6"/><path d="M58 214 Q60 176 120 170 Q180 176 182 214 Z" fill="#D7141A"/><path d="M108 168 L120 186 L132 168 Z" fill="#FFFFFF"/><rect x="110" y="150" width="20" height="22" rx="8" fill="#F7D2BC"/><path d="M66 128 Q62 66 120 60 Q178 66 174 128 L174 160 Q160 150 158 132 L82 132 Q80 150 66 160 Z" fill="#2B2420"/><ellipse cx="120" cy="124" rx="40" ry="44" fill="#FFE3D1"/><path d="M80 112 Q88 72 120 74 Q152 72 160 112 Q140 96 128 86 Q118 100 80 112 Z" fill="#2B2420"/><ellipse cx="104" cy="128" rx="5.5" ry="7" fill="#2B2420"/><ellipse cx="136" cy="128" rx="5.5" ry="7" fill="#2B2420"/><circle cx="106" cy="125" r="2" fill="#FFFFFF"/><circle cx="138" cy="125" r="2" fill="#FFFFFF"/><ellipse cx="94" cy="142" rx="7" ry="4" fill="#F7A8A8"/><ellipse cx="146" cy="142" rx="7" ry="4" fill="#F7A8A8"/><path d="M112 146 Q120 154 128 146" fill="none" stroke="#B4413A" stroke-width="2.4" stroke-linecap="round"/><path d="M140 74 L158 62 L160 82 Z" fill="#D7141A"/><path d="M140 74 L124 60 L120 80 Z" fill="#D7141A"/><circle cx="140" cy="74" r="5" fill="#A80F14"/></g></svg>';
   const chatFab=document.createElement('button'); chatFab.type='button'; chatFab.className='chat-fab'; chatFab.setAttribute('aria-haspopup','dialog');
   chatFab.innerHTML='<i aria-hidden="true"></i>유진이에게 물어보기';
   const chat=document.createElement('div'); chat.className='chat'; chat.hidden=true; chat.setAttribute('role','dialog'); chat.setAttribute('aria-label','유진이');
   chat.innerHTML='<div class="chat-dim" data-close></div><div class="chat-sheet">'+
-    '<div class="chat-head"><div class="chat-who"><span class="ava" aria-hidden="true">유</span><div><b>유진이</b><span id="chatFor"></span></div></div><div class="chat-acts"><button type="button" class="chat-x" id="chatGear" aria-label="AI 연결 설정" aria-expanded="false">⚙</button><button type="button" class="chat-x" data-close aria-label="닫기">×</button></div></div>'+
+    '<div class="chat-head"><div class="chat-who"><span class="ava" aria-hidden="true">'+YUJIN_PIC+'</span><div><b>유진이</b><span id="chatFor"></span></div></div><div class="chat-acts"><button type="button" class="chat-x" id="chatGear" aria-label="AI 연결 설정" aria-expanded="false">⚙</button><button type="button" class="chat-x" data-close aria-label="닫기">×</button></div></div>'+
     '<div class="chat-set" id="chatSet" hidden><div class="seg" id="provSeg" role="tablist" aria-label="AI 선택"><button type="button" role="tab" data-p="claude">Claude</button><button type="button" role="tab" data-p="gemini">Gemini</button></div><p id="provHelp"></p>'+
       '<div class="chat-in" style="padding:0"><input id="aiKey" type="password" placeholder="sk-ant-..." autocomplete="off" aria-label="AI API 키"><button type="button" id="aiSave" aria-label="키 저장">저장</button></div>'+
       '<button type="button" class="linkbtn" id="aiDel">저장된 키 지우기</button>'+
