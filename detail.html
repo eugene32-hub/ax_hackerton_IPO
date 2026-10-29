@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}html,body{overscroll-behavior-y:none}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head><body>
+<script>(function(){try{var m=/[?&]s=([^&]+)/.exec(location.search);if(m&&decodeURIComponent(m[1])!=='이에스티'){var h=document.documentElement;h.classList.add('boot');setTimeout(function(){h.classList.remove('boot')},4000);}}catch(e){}})();</script>
+<style>html.boot body *{visibility:hidden!important}</style>
 <title>이에스티 공모주 노트</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
@@ -124,6 +126,13 @@ h3{font-size:15px;font-weight:800}
 /* 좌우 스와이프 섹션 */
 .pager{display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;align-items:flex-start;transition:height .3s ease;margin-inline:-4px}
 .pager::-webkit-scrollbar{display:none}
+/* 배정 계산기: 참고 사례·증권사 버튼이 많아도 휴대폰 폭 안에서 두 줄로 접혀요 */
+.seg[data-r="brokers"]{flex-wrap:wrap}
+.seg[data-r="brokers"] button{flex:1 1 calc(50% - 4px);min-width:0;white-space:normal;line-height:1.35;padding:9px 6px}
+.seg button{min-width:0}
+.pager>section .card,.pager>section .field{min-width:0;max-width:100%}
+/* 배정 계산기 비율 막대는 헷갈릴 수 있어 숨겨요 */
+.prob{display:none!important}
 .plg{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 2px 2px;font-size:12.5px;font-weight:700;color:var(--fg);line-height:1.4}
 .plg span{display:inline-flex;align-items:center;gap:6px}
 .plg i{width:9px;height:9px;border-radius:50%;flex:none}
@@ -229,7 +238,7 @@ h3{font-size:15px;font-weight:800}
 #q:focus{border-color:var(--demo)}
 .sbox::before{content:"";position:absolute;left:10px;top:50%;width:9px;height:9px;border:2px solid var(--faint);border-radius:50%;transform:translateY(-62%);pointer-events:none}
 .sbox::after{content:"";position:absolute;left:19px;top:58%;width:6px;height:2px;background:var(--faint);transform:rotate(45deg);pointer-events:none}
-#qList{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;list-style:none;margin:0;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.14);max-height:min(60vh,360px);overflow:auto}
+#qList{overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;list-style:none;margin:0;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.14);max-height:min(60vh,360px);overflow:auto}
 #qList li{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:10px;border-radius:8px;cursor:pointer;font-size:13.5px;color:var(--fg)}
 #qList li span{color:var(--faint);font-size:11.5px;text-align:right}
 #qList li:hover,#qList li.act{background:var(--sunk)}
@@ -387,7 +396,7 @@ html{scroll-behavior:smooth}
   </div>
 
   <div class="card">
-    <h3>누구에게 얼마나 배정${s.rq?'됐을까요':'될까요'}?</h3>
+    <h3>누구에게 얼마나 배정됐을까요?</h3>
     <div class="split" aria-hidden="true"><b class="c1" style="width:75%"></b><b class="c3" style="width:25%"></b></div>
     <div class="legend">
       <div><span><i class="c1"></i>기관투자자</span><span class="num">1,650,000주 · 75%</span></div>
@@ -532,7 +541,7 @@ html{scroll-behavior:smooth}
 
   <div class="card calc-out" aria-live="polite">
     <span class="badge" id="calcBadge">실제 배정표 기준</span>
-    <span class="lbl">${s.stage==='pre'?'예상 배정 (참고 사례로 추정)':'예상 배정 (같은 단위 청약자 평균)'}</span>
+    <span class="lbl">예상 배정 (같은 단위 청약자 평균)</span>
     <div class="big num" id="avgOut">23.5<small>주</small></div>
     <div class="lines">
       <div class="line"><span>균등 배정</span><b class="num" id="eqOut">-</b></div>
@@ -544,6 +553,8 @@ html{scroll-behavior:smooth}
       <div class="line"><span>같은 단위 청약자</span><b class="num" id="cntOut">-</b></div>
     </div>
   </div>
+
+  <div class="card goal" id="estGoal"></div>
 
   <p class="note">균등 275,000주는 1건당 5주씩 주고, 남은 22,815주는 추첨으로 1주씩 더 줬어요(추첨 확률 45.2%). 비례 275,000주는 청약 수량에 비례해 나눴어요.</p>
   <p class="src">출처: 증권발행실적보고서(2026-10-27) Ⅱ.4 일반투자자 세부 배정 현황(78개 청약단위, 합계 550,000주 일치). 청약자가 없던 단위는 앞뒤 단위로 추정해요.</p>
@@ -795,7 +806,7 @@ html{scroll-behavior:smooth}
       svg.append(el('text',{x:NX,y:cy+4.5,'font-size':13,'font-weight':800,fill:css('--fg')},r.n));
       const x0=X(0), x1=X(r.oc), bh=18;
       svg.append(el('rect',{x:Math.min(x0,x1),y:cy-bh/2,width:Math.max(2,Math.abs(x1-x0)),height:bh,rx:5,fill:col,class:'growx'+(up?' pos':''),style:'animation-delay:'+(i*.07)+'s'}));
-      hit(svg,0,y,W,RH,'<b>'+r.full+'</b>시초가 → 종가 '+ud(r.oc,sg(r.oc.toFixed(1))+'%')+'<br>공모가 대비 시초가 '+ud(r.po,sg(r.po.toFixed(0))+'%')+'<br>공모가 대비 종가 '+ud(r.pc,sg(r.pc.toFixed(0))+'%')+'<br><em>공모가 '+fmt(r.p[2])+' · 시초 '+fmt(r.p[3])+' · 종가 '+fmt(r.p[4])+'원</em>',r.full+' 시초가 대비 종가 '+r.oc.toFixed(1)+'%');
+      hit(svg,0,y,W,RH,'<b>'+r.full+'</b>시초가 → 종가 '+ud(r.oc,sg(r.oc.toFixed(1))+'%')+'<br>공모가 대비 시초가 '+ud(r.po,sg(r.po.toFixed(0))+'%')+'<br>공모가 대비 종가 '+ud(r.pc,sg(r.pc.toFixed(0))+'%')+'<br>공모 규모 '+(+r.p[1]).toFixed(1)+'억원<br><em>공모가 '+fmt(r.p[2])+' · 시초 '+fmt(r.p[3])+' · 종가 '+fmt(r.p[4])+'원</em>',r.full+' 시초가 대비 종가 '+r.oc.toFixed(1)+'%');
     });
     const y=top+rows.length*RH, cy=y+RH/2;
     svg.append(el('text',{x:NX,y:cy+4.5,'font-size':13,'font-weight':800,fill:css('--accent')},'이에스티'));
@@ -999,6 +1010,16 @@ html{scroll-behavior:smooth}
   </div>
 </section>`; }
 
+  // 목표 주수별 필요 증거금: 청약 단위별 평균 배정(points)에서 '평균 N주 이상'이 되는 가장 작은 증거금을 찾아요
+  // points: [{money:증거금, qty:청약 주수, avg:이 종목 기준 평균 배정 주수}]
+  function goalHTML(points,note){
+    const pts=points.filter(p=>p.money>0&&isFinite(p.avg)).sort((a,b)=>a.money-b.money); if(!pts.length) return '';
+    const max=Math.max(...pts.map(p=>p.avg));
+    // 같은 증거금으로 여러 목표를 채우면(예: 최소 청약만으로 평균 5주) 가장 큰 목표 한 줄만 남겨요
+    const rows=[1,3,5,10,20,50,100].filter(t=>t<=max).map(t=>({t,p:pts.find(p=>p.avg>=t)})).filter((r,i,a)=>r.p&&!(a[i+1]&&a[i+1].p===r.p));
+    const body=rows.length?rows.map((r,i)=>'<div class="line"'+(i?'':' style="border-top:0;padding-top:0"')+'><span>'+(r.p===pts[0]?'최소 청약만 해도 평균 '+r.t+'주 이상':'평균 '+r.t+'주 이상')+'</span><b class="num">'+fmt(Math.ceil(r.p.money))+'원 <small>('+fmt(r.p.qty)+'주 청약)</small></b></div>').join('')
+      :'<p class="note">가장 큰 청약 단위로 넣어도 평균 1주가 안 돼요(최대 평균 '+max.toFixed(1)+'주).</p>';
+    return '<h3>몇 주 받으려면 얼마를 넣어야 할까요?</h3><div class="lines">'+body+'</div><p class="src">'+note+'</p>'; }
   function planCard(s){ const plan=DB.brokers.filter(b=>b.n===s.n), px=PX(s); if(!plan.length) return '';
     return '<div class="card"><h3>증권사별 일반청약 배정 계획</h3><div class="lines">'+plan.map((b,i)=>'<div class="line"'+(i?'':' style="border-top:0;padding-top:0"')+'><span>'+esc(b.b)+' <small>'+esc(b.role||'')+'</small></span><b class="num">'+(b.alloc?fmt(b.alloc)+'주':'-')+'</b></div>'+(b.min_unit?'<div class="line"><span>최소 '+fmt(b.min_unit)+'주 증거금'+(s.price?'':' (밴드 상단)')+'</span><b class="num">'+fmt(b.min_unit*px/2)+'원</b></div>':'')+(b.max_qty?'<div class="line"><span>1인 청약 한도</span><b class="num">'+fmt(b.max_qty)+'주</b></div>':'')).join('')+'</div></div>'; }
   function panelCalc(s){
@@ -1035,6 +1056,7 @@ html{scroll-behavior:smooth}
     </div>
     ${s.stage==='pre'?'<p class="note" style="margin-top:12px">예상 배정수량임에 따라 실제 배정분과 다를 수 있습니다.</p>':''}
   </div>
+  <div class="card goal" data-r="goal"></div>
   ${s.stage==='pre'?planCard(s):''}
   <p class="src">출처: ${esc(s.n)} ${s.rq?'증권발행실적보고서 Ⅱ.4 일반투자자 세부 배정 현황. 표에 없는 주수는 바로 아래 청약 단위로 계산해요.':(s.stage==='pre'?'참고 사례 증권발행실적보고서 Ⅱ.4 배정표, 이 종목 증권신고서 인수·청약 안내. 같은 증거금을 넣은 참고 사례 청약자의 평균 배정 금액을 이 종목 가격'+(s.price?'':'(희망 밴드 상단)')+'으로 나눠 계산해요.':'증권신고서 인수·청약 안내. 실제 배정은 청약 경쟁률에 따라 달라져요.')}</p>
 </section>`; }
@@ -1067,6 +1089,7 @@ html{scroll-behavior:smooth}
       if(mode==='qty') u=snap(raw); else { amount=raw; u=snap(raw/DEP); } sync(); render(); }
     function setUnit(v){ u=v; if(mode==='qty') input.value=fmt(u); else { amount=u*DEP; input.value=fmt(amount); } sync(); render(); }
     function selBroker(i){ bi=i; rows=group(brs[i]); range.max=rows.length-1;
+      q('goal').innerHTML=goalHTML(rows.map(g=>({money:g.u*DEP,qty:g.u,avg:g.tot/g.c})),brs[i].b+' 실제 배정표에서 같은 단위 청약자가 받은 평균 주수 기준이에요.');
       q('brokers').querySelectorAll('button').forEach((b,k)=>b.setAttribute('aria-selected',k===i));
       q('hint').textContent=mode==='qty'?fmt(rows[0].u)+'~'+fmt(rows[rows.length-1].u)+'주 · 청약 단위에 맞춰 자동 조정돼요':'증거금(청약금액의 50%)으로 가능한 최대 주수를 계산해요';
       const pick=rows.find(r=>r.u>=1000)||rows[Math.floor(rows.length/2)]; setUnit(u&&rows.some(r=>r.u===u)?u:pick.u); }
@@ -1082,7 +1105,7 @@ html{scroll-behavior:smooth}
     if(brs.length) selBroker(0);
     else{ const plan=DB.brokers.filter(b=>b.n===s.n), px=PX(s);
       sec.querySelector('.card').innerHTML=plan.length?'<h3>증권사별 일반청약 배정 계획</h3><div class="lines">'+plan.map((b,i)=>'<div class="line"'+(i?'':' style="border-top:0;padding-top:0"')+'><span>'+esc(b.b)+' <small>'+esc(b.role||'')+'</small></span><b class="num">'+(b.alloc?fmt(b.alloc)+'주':'-')+'</b></div>'+(b.min_unit?'<div class="line"><span>최소 '+fmt(b.min_unit)+'주 증거금'+(s.price?'':' (밴드 상단)')+'</span><b class="num">'+fmt(b.min_unit*px/2)+'원</b></div>':'')).join('')+'</div>'+(s.price?'':'<p class="src">확정 공모가는 수요예측 뒤 정해져요. 증거금은 희망 밴드 상단 '+fmt(px)+'원 기준이에요.</p>'):'<p class="note">이 종목의 청약 단위별 배정표가 없어요.</p>';
-      const out=sec.querySelector('.calc-out'); if(out) out.hidden=true; }
+      const out=sec.querySelector('.calc-out'); if(out) out.hidden=true; const gl=sec.querySelector('.goal'); if(gl) gl.hidden=true; }
   }
 
   // 청약 전 종목: 같은 주관사의 과거 청약 배정표(참고 사례)로 예상 배정 수량을 계산해요.
@@ -1127,6 +1150,7 @@ html{scroll-behavior:smooth}
     function fromInput(){ const raw=+(input.value.replace(/[^\d]/g,''))||0; input.value=raw?fmt(raw):'';
       money= mode==='qty' ? Math.floor(raw/MIN)*MIN*px/2 : raw; sync(); render(); }
     function selRef(i){ ri=i; groups=grp(refs[i].rows); range.max=groups.length-1;
+      q('goal').innerHTML=goalHTML(groups.map(g=>{ const m=g.u*refs[i].price/2; return {money:m,qty:Math.floor(m/(px/2)),avg:g.tot/g.c*refs[i].price/px}; }),'참고 사례 '+refs[i].n+'('+refs[i].b+') 배정 결과로 추정한 값이에요. 예상 배정수량임에 따라 실제 배정분과 다를 수 있습니다.');
       q('brokers').querySelectorAll('button').forEach((b,k)=>b.setAttribute('aria-selected',k===i));
       const r=refs[i];
       q('hint').textContent='참고 사례 '+r.n+' · '+r.b+' · 공모가 '+fmt(r.price)+'원'+(r.comp?' · 일반청약 경쟁률 '+r.comp.toFixed(1)+':1':'')+(same?'':' (같은 주관사 사례가 없어 최근 다른 주관사 사례예요)');
@@ -1189,7 +1213,7 @@ html{scroll-behavior:smooth}
       svg.append(el('text',{x:NX,y:cy+4.5,'font-size':13,'font-weight':800,fill:r.me?css('--accent'):css('--fg')},r.n));
       const x0=X(0), x1=X(r.oc);
       svg.append(el('rect',{x:Math.min(x0,x1),y:cy-9,width:Math.max(2,Math.abs(x1-x0)),height:18,rx:5,fill:col,class:'growx'+(up?' pos':''),style:'animation-delay:'+(i*.07)+'s'}));
-      hit(svg,0,y,W,RH,'<b>'+esc(r.full)+'</b>시초가 → 종가 '+ud(r.oc,sg(r.oc.toFixed(1))+'%')+'<br>공모가 대비 시초가 '+ud(r.po,sg(r.po.toFixed(0))+'%')+'<br>공모가 대비 종가 '+ud(r.pc,sg(r.pc.toFixed(0))+'%')+'<br><em>공모가 '+fmt(r.p.price)+' · 시초 '+fmt(r.p.open)+' · 종가 '+fmt(r.p.close)+'원</em>',r.full+' 시초가 대비 종가 '+r.oc.toFixed(1)+'%'); });
+      hit(svg,0,y,W,RH,'<b>'+esc(r.full)+'</b>시초가 → 종가 '+ud(r.oc,sg(r.oc.toFixed(1))+'%')+'<br>공모가 대비 시초가 '+ud(r.po,sg(r.po.toFixed(0))+'%')+'<br>공모가 대비 종가 '+ud(r.pc,sg(r.pc.toFixed(0))+'%')+'<br>공모 규모 '+amt(r.p).toFixed(1)+'억원<br><em>공모가 '+fmt(r.p.price)+' · 시초 '+fmt(r.p.open)+' · 종가 '+fmt(r.p.close)+'원</em>',r.full+' 시초가 대비 종가 '+r.oc.toFixed(1)+'%'); });
   }
 
   function panelRisk(s){
@@ -5532,6 +5556,7 @@ html{scroll-behavior:smooth}
     loader.querySelector('#ldName').textContent=name;
     const ol=loader.querySelector('#ldSteps'); ol.innerHTML=steps.map(t=>'<li><i></i><span>'+esc(t)+'</span></li>').join('');
     const bar=loader.querySelector('#ldBar'); bar.style.width='0%';
+    document.documentElement.classList.remove('boot');   // 로딩 화면이 이 종목 이름으로 바뀐 뒤에 보여 줘요
     const items=[...ol.children]; let i=0;
     (function tick(){ items[i].className='on'; bar.style.width=((i+.5)/steps.length*100)+'%';
       setTimeout(()=>{ items[i].className='ok'; i++; bar.style.width=(i/steps.length*100)+'%';
@@ -5569,9 +5594,13 @@ html{scroll-behavior:smooth}
   // 오른쪽 표시: 상장 종목은 상장일, 상장 대기는 상장 예정일, 청약 종목은 청약 기간(2영업일)
   const nextBiz=d=>{ const e=new Date(d); do{ e.setDate(e.getDate()+1); }while(e.getDay()===0||e.getDay()===6); return e; };
   const subRange=s=>{ const d=new Date(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10)), e=nextBiz(d); return (d.getMonth()+1)+'.'+d.getDate()+'~'+(e.getMonth()===d.getMonth()?'':(e.getMonth()+1)+'.')+e.getDate(); };
-  const ITEMS=[{n:'이에스티',meta:'11.4 상장 예정',ok:true},
-    ...DB.stocks.filter(s=>s.open).sort((a,b)=>b.list.localeCompare(a.list)).map(s=>({n:s.n,meta:md(s.list)+(s.list==='2026-10-29'?' 오늘 상장':' 상장'),ok:true})),
-    ...DB.upcoming.filter(u=>u.n!=='이에스티'&&!DB.stocks.some(s=>s.n===u.n&&s.open)).map(u=>({n:u.n,meta:(u.st||'').includes('완료')?(u.list?md(u.list)+' 상장 예정':'상장 예정'):(u.sub?'청약 '+subRange(u.sub):'청약 예정'),ok:DB.stocks.some(s=>s.n===u.n)}))];
+  // 검색 목록 순서: 청약 일정이 가까운 순 → 상장 예정일이 가까운 순 → 최근 상장 순(같은 종목은 처음 한 번만)
+  const ITEMS=[], seenQ=new Set(), pushQ=it=>{ if(!seenQ.has(it.n)){ seenQ.add(it.n); ITEMS.push(it); } };
+  const hasQ=n=>n==='이에스티'||DB.stocks.some(s=>s.n===n), TODAY_S='2026-10-29', listedQ=DB.stocks.filter(s=>s.open).sort((a,b)=>b.list.localeCompare(a.list));
+  DB.upcoming.filter(u=>(u.st||'').includes('예정')).sort((a,b)=>(a.sub||'9').localeCompare(b.sub||'9')).forEach(u=>pushQ({n:u.n,meta:u.sub?'청약 '+subRange(u.sub):'청약 예정',ok:hasQ(u.n)}));
+  DB.upcoming.filter(u=>(u.st||'').includes('완료')&&u.list&&u.list>=TODAY_S&&!listedQ.some(s=>s.n===u.n)).sort((a,b)=>a.list.localeCompare(b.list)).forEach(u=>pushQ({n:u.n,meta:md(u.list)+' 상장 예정',ok:hasQ(u.n)}));
+  listedQ.forEach(s=>pushQ({n:s.n,meta:md(s.list)+(s.list===TODAY_S?' 오늘 상장':' 상장'),ok:true}));
+  DB.upcoming.forEach(u=>pushQ({n:u.n,meta:u.list?md(u.list)+' 상장 예정':'상장 예정',ok:hasQ(u.n)}));
   let qi=-1;
   function openList(){ const v=qIn.value.trim(); const hits=ITEMS.filter(it=>!v||it.n.includes(v)).slice(0,60);
     qList.innerHTML=hits.length?hits.map((it,i)=>'<li role="option" data-n="'+esc(it.n)+'" data-ok="'+it.ok+'" id="qo'+i+'"'+(it.n===currentStock?' aria-selected="true"':'')+'><b>'+esc(it.n)+'</b><span>'+esc(it.meta)+'</span></li>').join(''):'<li class="empty">일치하는 종목이 없어요</li>';
@@ -5584,7 +5613,13 @@ html{scroll-behavior:smooth}
   qIn.addEventListener('keydown',e=>{ const opts=[...qList.querySelectorAll('li[data-n]')]; if(!opts.length) return;
     if(e.key==='ArrowDown'||e.key==='ArrowUp'){ e.preventDefault(); qi=(qi+(e.key==='ArrowDown'?1:-1)+opts.length)%opts.length; opts.forEach((o,k)=>o.classList.toggle('act',k===qi)); qIn.setAttribute('aria-activedescendant',opts[qi].id); }
     else if(e.key==='Enter'){ e.preventDefault(); pick(opts[Math.max(0,qi)]); } else if(e.key==='Escape') closeList(); });
-  qList.addEventListener('pointerdown',e=>{ e.preventDefault(); pick(e.target.closest('li')); });
+  // 목록을 손가락으로 밀어 스크롤할 때는 열리지 않고, 제자리에서 톡 눌렀을 때만 종목을 열어요
+  let tap=null;
+  qList.addEventListener('pointerdown',e=>{ if(e.pointerType==='mouse') e.preventDefault(); tap={x:e.clientX,y:e.clientY,li:e.target.closest('li')}; });
+  qList.addEventListener('pointermove',e=>{ if(tap&&Math.hypot(e.clientX-tap.x,e.clientY-tap.y)>8) tap=null; });
+  qList.addEventListener('pointercancel',()=>{ tap=null; });
+  qList.addEventListener('scroll',()=>{ tap=null; },{passive:true});
+  qList.addEventListener('pointerup',e=>{ if(!tap) return; const li=tap.li; tap=null; if(li&&li===e.target.closest('li')) pick(li); });
   document.addEventListener('pointerdown',e=>{ if(!e.target.closest('.sbox')) closeList(); });
 
   /* ---------- 기본 정보 숫자 카운트업 ---------- */
@@ -5616,6 +5651,9 @@ html{scroll-behavior:smooth}
     brs.forEach(b=>{ if(DB.units[name+'|'+b.b]) units[b.b]=DB.units[name+'|'+b.b]; });
     return {s,P:PROFILES[name]||{},brokers:brs,lockup:DB.lockup[name]||null,units}; }
 
+  (()=>{ const box=document.getElementById('estGoal'), u=ctxOf('이에스티').units['대신증권']; if(!box||!u) return; const m=new Map();
+    u.forEach(r=>{ const g=m.get(r[0])||{u:r[0],c:0,tot:0}; g.c+=r[1]||0; g.tot+=r[9]||0; m.set(r[0],g); });
+    box.innerHTML=goalHTML([...m.values()].filter(g=>g.c>0).map(g=>({money:g.u*6200,qty:g.u,avg:g.tot/g.c})),'대신증권 실제 배정표에서 같은 단위 청약자가 받은 평균 주수 기준이에요.'); })();
   const GLOSS=[
     [['균등배정','균등'],'균등배정은 일반청약 물량의 절반 이상을 청약 건수대로 똑같이 나누는 방식이에요. 최소 단위만 청약해도 받을 수 있어요.',C=>{ const b=C.brokers[0]; return b&&b.base!=null?(b.base>0?'이 종목('+b.b+')은 1건당 '+b.base+'주씩 주고 남은 물량은 추첨했어요.':'이 종목('+b.b+')은 청약 건수가 균등 물량보다 많아 추첨으로 0주 또는 1주를 받았어요.'):''; }],
     [['비례배정','비례'],'비례배정은 청약한 주수(증거금)에 비례해서 나누는 방식이에요. 많이 청약할수록 더 받아요.',C=>{ const b=C.brokers[0]; return b&&b.pr&&b.qty?'이 종목은 비례 물량 '+fmt(b.pr)+'주에 약 '+(b.qty/b.pr).toFixed(1)+'주 청약당 1주꼴로 나뉘었어요.':''; }],

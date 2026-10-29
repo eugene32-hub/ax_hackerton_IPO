@@ -72,7 +72,7 @@ a{color:inherit} button,input{font-family:inherit}
 #q:focus{border-color:var(--accent)}
 .sbox::before{content:"";position:absolute;left:14px;top:50%;width:11px;height:11px;border:2px solid var(--faint);border-radius:50%;transform:translateY(-62%);pointer-events:none}
 .sbox::after{content:"";position:absolute;left:25px;top:59%;width:7px;height:2px;background:var(--faint);transform:rotate(45deg);pointer-events:none}
-#qList{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;list-style:none;margin:0;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.14);max-height:min(60vh,360px);overflow:auto}
+#qList{overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;list-style:none;margin:0;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.14);max-height:min(60vh,360px);overflow:auto}
 #qList li{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:10px;border-radius:8px;cursor:pointer;font-size:13.5px}
 #qList li span{color:var(--faint);font-size:11.5px;text-align:right}
 #qList li:hover,#qList li.act{background:var(--sunk)}
@@ -355,9 +355,12 @@ html{scroll-behavior:smooth}
   /* 검색 */
   const qIn=document.getElementById('q'), qList=document.getElementById('qList');
   // 오른쪽 표시: 상장 종목은 상장일, 상장 대기는 상장 예정일, 청약 종목은 청약 기간
-  const ITEMS=[{n:'이에스티',meta:'11.4 상장 예정',ok:true},
-    ...recent.map(s=>({n:s.n,meta:md2(s.list)+(dday(s.list)===0?' 오늘 상장':' 상장'),ok:true})),
-    ...up.filter(u=>u.n!=='이에스티'&&!recent.some(s=>s.n===u.n)).map(u=>({n:u.n,meta:(u.st||'').includes('완료')?(u.list?md2(u.list)+' 상장 예정':'상장 예정'):(u.sub?'청약 '+range(u.sub):'청약 예정'),ok:has(u.n)}))];
+  // 검색 목록 순서: 청약 일정이 가까운 순 → 상장 예정일이 가까운 순 → 최근 상장 순(같은 종목은 처음 한 번만)
+  const ITEMS=[], seen=new Set(), push=it=>{ if(!seen.has(it.n)){ seen.add(it.n); ITEMS.push(it); } };
+  subs.forEach(u=>push({n:u.n,meta:u.sub?'청약 '+range(u.sub):'청약 예정',ok:has(u.n)}));
+  listing.filter(u=>!recent.some(s=>s.n===u.n)).forEach(u=>push({n:u.n,meta:md2(u.list)+' 상장 예정',ok:has(u.n)}));
+  recent.forEach(s=>push({n:s.n,meta:md2(s.list)+(dday(s.list)===0?' 오늘 상장':' 상장'),ok:true}));
+  up.forEach(u=>push({n:u.n,meta:u.list?md2(u.list)+' 상장 예정':'상장 예정',ok:has(u.n)}));
   let qi=-1;
   function openList(){ const v=qIn.value.trim(), hits=ITEMS.filter(it=>!v||it.n.includes(v)).slice(0,60);
     qList.innerHTML=hits.length?hits.map((it,i)=>'<li role="option" id="qo'+i+'" data-n="'+esc(it.n)+'" data-ok="'+it.ok+'"><b>'+esc(it.n)+'</b><span>'+esc(it.meta)+'</span></li>').join(''):'<li class="empty">일치하는 종목이 없어요</li>';
@@ -368,7 +371,13 @@ html{scroll-behavior:smooth}
   qIn.addEventListener('keydown',e=>{ const opts=[...qList.querySelectorAll('li[data-n]')]; if(!opts.length) return;
     if(e.key==='ArrowDown'||e.key==='ArrowUp'){ e.preventDefault(); qi=(qi+(e.key==='ArrowDown'?1:-1)+opts.length)%opts.length; opts.forEach((o,k)=>o.classList.toggle('act',k===qi)); qIn.setAttribute('aria-activedescendant',opts[qi].id); }
     else if(e.key==='Enter'){ e.preventDefault(); pick(opts[Math.max(0,qi)]); } else if(e.key==='Escape') closeList(); });
-  qList.addEventListener('pointerdown',e=>{ e.preventDefault(); pick(e.target.closest('li')); });
+  // 목록을 손가락으로 밀어 스크롤할 때는 열리지 않고, 제자리에서 톡 눌렀을 때만 종목을 열어요
+  let tap=null;
+  qList.addEventListener('pointerdown',e=>{ if(e.pointerType==='mouse') e.preventDefault(); tap={x:e.clientX,y:e.clientY,li:e.target.closest('li')}; });
+  qList.addEventListener('pointermove',e=>{ if(tap&&Math.hypot(e.clientX-tap.x,e.clientY-tap.y)>8) tap=null; });
+  qList.addEventListener('pointercancel',()=>{ tap=null; });
+  qList.addEventListener('scroll',()=>{ tap=null; },{passive:true});
+  qList.addEventListener('pointerup',e=>{ if(!tap) return; const li=tap.li; tap=null; if(li&&li===e.target.closest('li')) pick(li); });
   document.addEventListener('pointerdown',e=>{ if(!e.target.closest('.sbox')) closeList(); });
 })();
 </script>
