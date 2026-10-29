@@ -1,0 +1,5 @@
+{
+  "functions": {
+    "api/yujin/[model].js": { "maxDuration": 60 }
+  }
+}
