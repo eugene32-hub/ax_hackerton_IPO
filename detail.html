@@ -942,12 +942,15 @@ html{scroll-behavior:smooth}
   function onPage(){ const i=Math.round(pager.scrollLeft/pager.clientWidth); if(i===cur){ fit(); return; }
     // 다른 목차로 넘어가면(스와이프·칩·화살표 모두) 화면 맨 위로 올려서 새 목차를 처음부터 읽게 해요
     if(cur!==-1&&scrollY>0) scrollTo({top:0,behavior:'smooth'});
-    cur=i;
+    const first=cur===-1; cur=i;
     chips.forEach((c,k)=>c.setAttribute('aria-current',k===i));
     [...dots.children].forEach((d,k)=>d.setAttribute('aria-current',k===i));
     document.getElementById('pName').textContent=(i+1)+'/'+panels.length+' · '+names[i];
     document.getElementById('prevP').disabled=i===0; document.getElementById('nextP').disabled=i===panels.length-1;
-    const a=chips[i], bar=a.parentElement; bar.scrollTo({left:a.offsetLeft-bar.clientWidth/2+a.clientWidth/2,behavior:'smooth'});
+    // 칩 위치는 목차 바 기준으로 재요(offsetLeft는 바깥 여백까지 더해져 첫 칩이 잘렸어요). 첫·마지막 목차는 끝까지 붙여요
+    const a=chips[i], bar=a.parentElement, ar=a.getBoundingClientRect(), br=bar.getBoundingClientRect();
+    const left=i===0?0:i===chips.length-1?bar.scrollWidth:bar.scrollLeft+ar.left-br.left-(br.width-ar.width)/2;
+    bar.scrollTo({left,behavior:first?'auto':'smooth'});
     panels.forEach((p,k)=>p.setAttribute('aria-hidden',k!==i));
     // 화면을 넘길 때마다(돌아온 화면 포함) 그 화면의 차트 애니메이션을 다시 재생
     document.querySelectorAll('.chart,.split').forEach(n=>{ if(io) io.unobserve(n); n.classList.remove('play'); });
